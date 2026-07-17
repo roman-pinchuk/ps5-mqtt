@@ -128,8 +128,7 @@ jobs:
           image-name: ${{ env.BUILD_IMAGE_NAME }}
           registry-prefix: ${{ steps.registry.outputs.prefix }}
 
-  # Build the app exactly once; both flavors (add-on archs and the standalone
-  # image) ship the byte-identical artifacts produced here.
+  # Build the app once and reuse its packaged artifacts for each add-on architecture.
   prepare:
     name: 👨‍🏭 Build & package app
     needs:
@@ -177,14 +176,6 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-      - name: ⏫ Upload packaged app
-        uses: actions/upload-artifact@v7
-        with:
-          name: packaged-app
-          path: ps5-mqtt/server/.packaged
-          include-hidden-files: true
-          if-no-files-found: error
-
   build:
     name: 🏭 Build ${{ matrix.arch }} add-on
     needs: [information, init, prepare]
@@ -222,57 +213,3 @@ jobs:
           version: ${{ needs.init.outputs.tag }}
           push: "false"
           cosign: "false"
-
-  standalone:
-    name: 🐳 Build standalone image - ${{ needs.init.outputs.tag }}
-    needs: [init, prepare]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      packages: write
-    steps:
-      - name: ⤵ Check out repository
-        uses: actions/checkout@v7
-
-      - name: 🧶 Enable Corepack
-        run: corepack enable
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.16.0
-          cache: yarn
-
-      - name: ⏬ Install dependencies
-        run: yarn install --immutable
-
-      - name: ⏬ Download packaged app
-        uses: actions/download-artifact@v8
-        with:
-          name: packaged-app
-          path: ps5-mqtt/server/.packaged
-
-      - name: 🔧 Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: 🔧 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: 🔑 Log in to GitHub Container Registry
-        if: needs.init.outputs.push == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🚀 Build standalone image (pushes only for same-repo PRs)
-        env:
-          REGISTRY: ghcr.io
-          OWNER: ${{ github.repository_owner }}
-          IMAGE: ps5-mqtt
-          TAGS: ${{ needs.init.outputs.tag }}
-          PLATFORMS: linux/amd64,linux/arm64
-          SKIP_PACKAGE: "1"
-          DRY_RUN: ${{ needs.init.outputs.push == 'true' && '0' || '1' }}
-        run: yarn workspace @ps5-mqtt/server publish
