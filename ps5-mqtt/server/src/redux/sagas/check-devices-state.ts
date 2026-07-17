@@ -1,7 +1,7 @@
 import createDebugger from "debug"
-import { getContext, put, select } from "redux-saga/effects"
-import sh from "shelljs"
-import { Settings, SETTINGS } from "../../services"
+import { Discovery } from "playactor/dist/discovery"
+import { IDiscoveredDevice } from "playactor/dist/discovery/model"
+import { call, put, select } from "redux-saga/effects"
 import { createErrorLogger } from "../../util/error-logger"
 import { updateHomeAssistant } from "../action-creators"
 import { getDeviceList } from "../selectors"
@@ -10,24 +10,31 @@ import type { Device } from "../types"
 const debug = createDebugger("@ha:ps5:checkDevicesState")
 const errorLogger = createErrorLogger()
 
-function* checkDevicesState() {
-  const { credentialStoragePath }: Settings = yield getContext(SETTINGS)
+async function checkDevice(
+  address: string,
+): Promise<IDiscoveredDevice | undefined> {
+  const discovery = new Discovery({ deviceIp: address })
 
+  for await (const device of discovery.discover(
+    {},
+    { timeoutMillis: 5000 },
+  )) {
+    return device
+  }
+
+  return undefined
+}
+
+function* checkDevicesState() {
   const devices: Device[] = yield select(getDeviceList)
   for (const device of devices) {
     try {
-      const { code, stdout, stderr } = sh.exec(
-        `playactor check --ip ${device.address.address} --machine-friendly` +
-          ` --timeout 15000 --connect-timeout 10000 --no-open-urls --no-auth` +
-          ` -c ${credentialStoragePath}`,
-        { silent: true, timeout: 15000 },
+      const discoveredDevice: IDiscoveredDevice | undefined = yield call(
+        checkDevice,
+        device.address.address,
       )
 
-      if (code > 1 && stderr) {
-        throw new Error(stderr)
-      }
-
-      if (!stdout) {
+      if (!discoveredDevice) {
         throw (
           "No data received from Playstation. If this error continues, " +
           "your Playstation is likely powered off or unreachable - it will " +
@@ -35,7 +42,7 @@ function* checkDevicesState() {
         )
       }
 
-      const updatedDevice: Device = JSON.parse(stdout)
+      const updatedDevice = discoveredDevice as unknown as Device
 
       if (device.transitioning) {
         debug(
