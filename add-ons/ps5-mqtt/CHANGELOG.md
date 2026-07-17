@@ -1,3 +1,8 @@
+## 1.4.2 - 2026-07-17
+
+## Bug fixes
+- Prevent transient PS5 device unavailability caused by missed discovery responses.
+
 ## 1.4.1 - 2026-07-14
 
 ## What’s changed
