@@ -2,7 +2,7 @@ version: "edge"
 slug: ps5_mqtt_dev
 name: PS5 MQTT - Development Version
 description: Development build of the PS5 MQTT add-on
-url: https://github.com/FunkeyFlo/ps5-mqtt/tree/main/add-ons/ps5-mqtt-edge
+url: https://github.com/roman-pinchuk/ps5-mqtt/tree/main/add-ons/ps5-mqtt-edge
 arch:
   - aarch64
   - amd64
@@ -47,4 +47,4 @@ schema:
   account_check_interval: int
   include_ps4_devices: bool
 stdin: true
-image: "ghcr.io/funkeyflo/ps5-mqtt-home-assistant-add-on"
+image: "ghcr.io/roman-pinchuk/ps5-mqtt-home-assistant-add-on"
