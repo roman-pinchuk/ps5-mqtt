@@ -1,7 +1,7 @@
-import { delay, getContext, put } from "redux-saga/effects"
+import { call, delay, getContext } from "redux-saga/effects"
 import { Settings, SETTINGS } from "../../services"
 import { createErrorLogger } from "../../util/error-logger"
-import { checkDevicesState } from "../action-creators"
+import { checkDevicesState } from "./check-devices-state"
 
 const debugError = createErrorLogger()
 
@@ -10,7 +10,7 @@ function* pollDevices() {
 
   while (true) {
     try {
-      yield put(checkDevicesState())
+      yield call(checkDevicesState)
       yield delay(checkDevicesInterval)
     } catch (e) {
       debugError(e)

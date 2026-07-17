@@ -17,7 +17,7 @@ async function checkDevice(
 
   for await (const device of discovery.discover(
     {},
-    { timeoutMillis: 5000 },
+    { timeoutMillis: 15000 },
   )) {
     return device
   }
