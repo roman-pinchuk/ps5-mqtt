@@ -1,3 +1,18 @@
+## 1.7.4 - 2026-10-01
+
+## Upstream update
+- Integrate upstream v1.7.3: passcode-protected profiles, persistent PSN OAuth tokens, improved standby reliability and Node.js compatibility, multi-subnet discovery, and clean shutdown.
+
+## Fork performance and reliability
+- Retain asynchronous, in-process PlayActor discovery for state checks: no polling subprocesses and no synchronous shell execution.
+- Retain the 15-second discovery retry window and wait for each check before scheduling the next poll.
+- Preserve fork Home Assistant image/repository settings and add-on-only builds.
+
+## Verification
+- 77 unit tests and 7 end-to-end tests pass, including real UDP discovery, dropped-packet retries, timeout/offline handling, and recovery.
+- Formatting, lint, typecheck, and amd64/aarch64 edge builds pass.
+- Release publishing is gated by unit and end-to-end tests.
+
 ## 1.7.3 - 2026-09-29
 
 ## What’s changed
