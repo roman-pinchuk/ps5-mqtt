@@ -1,7 +1,7 @@
 import createDebugger from "debug"
-import { Discovery } from "playactor/dist/discovery"
-import { IDiscoveredDevice } from "playactor/dist/discovery/model"
-import { call, put, select } from "redux-saga/effects"
+import { call, getContext, put, select } from "redux-saga/effects"
+import type { PlayactorClient } from "../../playactor/client"
+import { PLAYACTOR_CLIENT } from "../../services"
 import { createErrorLogger } from "../../util/error-logger"
 import { updateHomeAssistant } from "../action-creators"
 import { getDeviceList } from "../selectors"
@@ -10,39 +10,15 @@ import type { Device } from "../types"
 const debug = createDebugger("@ha:ps5:checkDevicesState")
 const errorLogger = createErrorLogger()
 
-async function checkDevice(
-  address: string,
-): Promise<IDiscoveredDevice | undefined> {
-  const discovery = new Discovery({ deviceIp: address })
-
-  for await (const device of discovery.discover(
-    {},
-    { timeoutMillis: 15000 },
-  )) {
-    return device
-  }
-
-  return undefined
-}
-
 function* checkDevicesState() {
+  const playactor: PlayactorClient = yield getContext(PLAYACTOR_CLIENT)
   const devices: Device[] = yield select(getDeviceList)
   for (const device of devices) {
     try {
-      const discoveredDevice: IDiscoveredDevice | undefined = yield call(
-        checkDevice,
+      const updatedDevice: Pick<Device, "status" | "activity"> = yield call(
+        [playactor, playactor.check],
         device.address.address,
       )
-
-      if (!discoveredDevice) {
-        throw (
-          "No data received from Playstation. If this error continues, " +
-          "your Playstation is likely powered off or unreachable - it will " +
-          "not be available until it is in either rest mode/powered on and reachable."
-        )
-      }
-
-      const updatedDevice = discoveredDevice as unknown as Device
 
       if (device.transitioning) {
         debug(

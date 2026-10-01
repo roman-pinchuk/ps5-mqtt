@@ -6,17 +6,21 @@ import path from "path"
 import createSagaMiddleware from "redux-saga"
 
 import { AppConfig, getAppConfig } from "./config"
+import { createPlayactorClient } from "./playactor/client"
 import { PsnAccount } from "./psn-account"
 import reducer, {
   getDeviceRegistry,
   pollDevices,
   pollDiscovery,
   pollPsnPresence,
+  registerDevice,
   saga,
   setPowerMode,
+  updateAccount,
 } from "./redux"
-import { Account, SwitchStatus } from "./redux/types"
-import { MQTT_CLIENT, Settings, SETTINGS } from "./services"
+import { Dispatch, SwitchStatus } from "./redux/types"
+import { MQTT_CLIENT, PLAYACTOR_CLIENT, Settings, SETTINGS } from "./services"
+import { registerShutdownHandlers } from "./shutdown"
 import { createErrorLogger } from "./util/error-logger"
 import { setupWebserver } from "./web-server"
 
@@ -37,23 +41,34 @@ const createMqtt = async (
   })
 }
 
-async function getPsnAccountRegistry(
+// Bootstraps each configured PSN account and dispatches it via
+// UPDATE_PSN_ACCOUNT, which both populates it into the store (the reducer
+// keys accounts by accountId) and triggers the persist-psn-account saga to
+// mirror it to disk — the same path a periodic presence-check refresh goes
+// through. Requires the store/saga middleware to already be running.
+// Returns how many accounts were bootstrapped successfully.
+async function bootstrapPsnAccounts(
   accounts: AppConfig.PsnAccountInfo[],
-): Promise<Record<string, Account>> {
-  const accountRegistry: Record<string, Account> = {}
+  dispatch: Dispatch,
+): Promise<number> {
+  let successCount = 0
   for (const accountInfo of accounts) {
     try {
       const account = await PsnAccount.exchangeNpssoForPsnAccount(
         accountInfo.npsso,
         accountInfo.username,
+        dispatch,
       )
-      accountRegistry[account.accountId] = {
-        ...account,
-        preferredDevices: {
-          ps4: accountInfo.preferred_ps4,
-          ps5: accountInfo.preferred_ps5,
-        },
-      }
+      dispatch(
+        updateAccount({
+          ...account,
+          preferredDevices: {
+            ps4: accountInfo.preferred_ps4,
+            ps5: accountInfo.preferred_ps5,
+          },
+        }),
+      )
+      successCount += 1
     } catch (e) {
       logError(e)
       logError(
@@ -61,10 +76,15 @@ async function getPsnAccountRegistry(
       )
     }
   }
-  return accountRegistry
+  return successCount
 }
 
 export async function run() {
+  // Register first so a stop request during startup (e.g. while still waiting
+  // on the MQTT broker) also exits cleanly instead of dying from the signal.
+  const connections: { mqtt?: MQTT.AsyncMqttClient } = {}
+  registerShutdownHandlers({ cleanup: () => connections.mqtt?.end() })
+
   const appConfig = getAppConfig()
   createDebugger("@ha:ps5-sensitive:parsed-config")(appConfig)
 
@@ -72,6 +92,7 @@ export async function run() {
 
   debug("Establishing MQTT Connection...")
   const mqtt: MQTT.AsyncMqttClient = await createMqtt(appConfig)
+  connections.mqtt = mqtt
   debug("Connected to MQTT Broker!")
 
   const settings: Settings = {
@@ -85,34 +106,71 @@ export async function run() {
       path.join(os.homedir(), ".config", "playactor", "credentials.json"),
     allowPs4Devices: appConfig.include_ps4_devices ?? true,
 
+    loginPasscode: appConfig.login_passcode,
+
     deviceDiscoveryBroadcastAddress:
       appConfig.device_discovery_broadcast_address,
 
     discoveryTopic: appConfig.mqtt.discovery_topic,
   }
 
+  const playactorClient = createPlayactorClient({
+    credentialStoragePath: settings.credentialStoragePath,
+    loginPasscode: settings.loginPasscode,
+    allowPs4Devices: settings.allowPs4Devices,
+  })
+
   try {
     const sagaMiddleware = createSagaMiddleware({
       context: {
         [MQTT_CLIENT]: mqtt,
         [SETTINGS]: settings,
+        [PLAYACTOR_CLIENT]: playactorClient,
       },
     })
-    const accounts = await getPsnAccountRegistry(appConfig.psn_accounts ?? [])
-    createDebugger("@ha:ps5-sensitive:registered-accounts")(accounts)
     const store = configureStore({
       reducer,
       middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware().concat(sagaMiddleware),
       preloadedState: {
         devices: {},
-        accounts: accounts,
+        accounts: {},
       },
     })
     store.subscribe(() => {
       debugState(JSON.stringify(store.getState(), null, 2))
     })
     sagaMiddleware.run(saga)
+
+    // Bootstrapping accounts dispatches through the store (persist-psn-account
+    // saga included), so it can only happen once the store/saga middleware
+    // above are running.
+    const accountCount = await bootstrapPsnAccounts(
+      appConfig.psn_accounts ?? [],
+      store.dispatch,
+    )
+    createDebugger("@ha:ps5-sensitive:registered-accounts")(
+      store.getState().accounts,
+    )
+
+    // Seed any statically-configured devices so they're controllable without
+    // waiting on (or requiring) UDP-broadcast discovery. Real discovery still
+    // runs and will register anything else it finds.
+    for (const device of appConfig.static_devices ?? []) {
+      store.dispatch(
+        registerDevice({
+          ...device,
+          available: device.available ?? true,
+          activity: undefined,
+          normalizedName:
+            device.normalizedName ??
+            device.name
+              .replace(/[^a-zA-Z\d\s-_:]/g, "")
+              .replace(/[\s-]/g, "_")
+              .toLowerCase(),
+        }),
+      )
+    }
 
     const cmdTopicRegEx = /^ps5-mqtt\/([^/]*)\/set\/(.*)$/
 
@@ -137,7 +195,7 @@ export async function run() {
     await mqtt.subscribe("ps5-mqtt/#")
 
     // don't poll if there are no accounts registered
-    if (Object.keys(accounts).length > 0) {
+    if (accountCount > 0) {
       store.dispatch(pollPsnPresence())
     }
 

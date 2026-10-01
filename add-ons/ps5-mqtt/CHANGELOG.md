@@ -1,11 +1,60 @@
+## 1.7.3 - 2026-09-29
+
+## What’s changed
+
+- fix(server): exit cleanly on SIGTERM so stopping the add-on is not reported as an error @andrew-codes (#687)
+
+## 1.7.2 - 2026-09-27
+
+## What’s changed
+
+- fix(playactor): reach every attached subnet during PS5 discovery @andrew-codes (#683)
+
+## 1.7.0 - 2026-08-17
+
+## What’s changed
+
+- Fix power off (standby) reliability by detecting playactor timeout-kills @andrew-codes (#676)
+
+## ⬆️ Dependency updates
+
+- Bump tar from 7.5.20 to 7.5.22 @[dependabot[bot]](https://github.com/apps/dependabot) (#671)
+- Bump ip-address from 10.2.0 to 10.4.0 @[dependabot[bot]](https://github.com/apps/dependabot) (#672)
+
+## 1.6.0 - 2026-07-23
+
+## What’s changed
+
+- improved e2e release confidence @andrew-codes (#667)
+- feat(server): persist PSN OAuth tokens to disk so NPSSO only needs renewing after long downtime @wizardmelon (#665)
+
+## ⬆️ Dependency updates
+
+- Bump tar from 7.5.16 to 7.5.20 @[dependabot[bot]](https://github.com/apps/dependabot) (#668)
+- Bump brace-expansion from 1.1.15 to 1.1.16 @[dependabot[bot]](https://github.com/apps/dependabot) (#666)
+
+## 1.5.0 - 2026-07-20
+
+## What’s changed
+
+- chore: better logging around missing configuration @andrew-codes (#653)
+- chore(ci): unify HA add-on image name, drop PR tags for it @andrew-codes (#654)
+- feat: add optional login_passcode for passcode-protected profiles @bayan9 (#663)
+
+## ⬆️ Dependency updates
+
+- chore: security dependencies' updates @andrew-codes (#655)
+
 ## 1.4.2 - 2026-07-17
 
 ## Bug fixes
+
 - Prevent transient PS5 device unavailability caused by missed discovery responses.
 
 ## 1.4.1 - 2026-07-14
 
 ## What’s changed
+
 - fix: removal of intermediate packages @andrew-codes (#650)
 - chore(ci): GH release is the trigger for a release @andrew-codes (#651)
 
@@ -158,13 +207,14 @@ You can find the ID of your PlayStation device by:
 Matching PSN account activity to consoles is now supported.
 
 The add-on will create a new `sensor.my_playstation_activity` sensor that tells you which app/game is being used on the console! Both entities, `activity` and `power`, will now include the following attributes:
-| Attribute | Description |
-| -- | -- |
-| `Players` | A list of players active on the device |
+
+| Attribute                 | Description                                                                |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `Players`                 | A list of players active on the device                                     |
 | `Activity` / sensor.state | `idle`, `playing` or `none`; indicating the kind of activity on the device |
-| `Title Name` | A user-friendly name of the Playstation App / Game currently in use. |
-| `Title Image` | A `url` referring to the official box-art. |
-| `Title ID` | unique code for the Playstation App / Game currently in use. |
+| `Title Name`              | A user-friendly name of the Playstation App / Game currently in use.       |
+| `Title Image`             | A `url` referring to the official box-art.                                 |
+| `Title ID`                | unique code for the Playstation App / Game currently in use.               |
 
 Take a look at the [documentation](https://github.com/FunkeyFlo/ps5-mqtt/blob/main/add-ons/ps5-mqtt-edge/DOCS.md#psn_accounts-optional-multiple) to see how to configure the add on for tracking PSN accounts and how to acquire the required information.
 
