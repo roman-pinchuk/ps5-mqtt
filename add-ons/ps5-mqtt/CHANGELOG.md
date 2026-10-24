@@ -1,3 +1,10 @@
+## 1.7.5 - 2026-10-24
+
+## What’s changed
+- fix(server): stop discovery stacking message listeners on the shared UDP socket
+
+This release keeps discovery reliable on hosts with multiple network interfaces.
+
 ## 1.7.4 - 2026-10-01
 
 ## Upstream update
