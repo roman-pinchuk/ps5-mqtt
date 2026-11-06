@@ -1,12 +1,13 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - "v*"
   release:
     types: [published]
-  # Manual runs exercise the full pipeline (build, test, package images) but
-  # never push, commit, or move a release tag — there's no published release
-  # to anchor those side effects to. To actually ship, publish a GitHub
-  # release (draft-release.yml keeps one up to date with the next version).
+  # Manual runs exercise the full pipeline but never publish images or mutate
+  # the repository. Production releases are driven by pushing a v* tag.
   workflow_dispatch: {}
 
 permissions:
@@ -54,7 +55,7 @@ jobs:
         id: version
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name || github.ref_name }}
         run: yarn resolve-release-version
 
   static-analysis:
@@ -354,7 +355,7 @@ jobs:
       # dry run; a real run already has notes from the published release.
       - name: 📝 Draft release notes
         id: notes
-        if: ${{ github.event_name != 'release' }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: release-drafter/release-drafter@v7
         with:
           config-name: release-drafter.yml
@@ -365,9 +366,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 🚀 Publish GitHub release
+        id: github_release
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" --generate-notes --repo "$GITHUB_REPOSITORY"
+          fi
+
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: ✍ Update changelog
         env:
-          RELEASE_NOTES: ${{ github.event_name == 'release' && github.event.release.body || steps.notes.outputs.body }}
+          RELEASE_NOTES: ${{ github.event_name == 'release' && github.event.release.body || steps.github_release.outputs.body || steps.notes.outputs.body }}
         run: yarn update-changelog ${{ needs.version.outputs.version }}
 
       - name: 🛡 Ensure main hasn't moved since this release was published
@@ -425,7 +445,7 @@ jobs:
       - build
       - manifest
       - release
-    if: ${{ failure() && github.event_name == 'release' }}
+    if: ${{ failure() && (github.event_name == 'release' || github.event_name == 'push') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -434,7 +454,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release edit "${{ github.event.release.tag_name }}" \
+          gh release edit "${{ github.event.release.tag_name || github.ref_name }}" \
             --draft \
             --repo "${{ github.repository }}"
 
@@ -446,4 +466,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh api -X DELETE \
-            "repos/${{ github.repository }}/git/refs/tags/${{ github.event.release.tag_name }}"
+            "repos/${{ github.repository }}/git/refs/tags/${{ github.event.release.tag_name || github.ref_name }}"
