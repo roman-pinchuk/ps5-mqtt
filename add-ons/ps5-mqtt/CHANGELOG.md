@@ -15,7 +15,7 @@
 - Bump ip-address from 10.4.0 to 10.7.2 (#686)
 - Bump browserslist from 4.28.2 to 4.28.8 (#677)
 
-## 1.7.5 - 2026-10-16
+## 1.7.5 - 2026-10-24
 
 ## What’s changed
 - fix(server): stop discovery stacking message listeners on the shared UDP socket @andrew-codes (#693)
