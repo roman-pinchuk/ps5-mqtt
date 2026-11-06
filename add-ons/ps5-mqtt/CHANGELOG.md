@@ -1,3 +1,11 @@
+## 1.7.6 - 2026-11-06
+
+## What’s changed
+## ⬆️ Dependency updates
+
+- Merge upstream v1.8.1 updates @roman-pinchuk (#2)
+- ci: automate releases from version tags @roman-pinchuk (#3)
+
 ## 1.8.1 - 2026-11-04
 
 ## What’s changed
