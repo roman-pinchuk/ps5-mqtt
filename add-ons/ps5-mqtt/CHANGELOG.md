@@ -1,4 +1,31 @@
-## 1.7.4 - 2026-10-01
+## 1.8.1 - 2026-11-04
+
+## What’s changed
+- fix: resolve high and critical dependabot alerts in lockfile @andrew-codes (#700)
+
+## 1.8.0 - 2026-10-31
+
+## What’s changed
+- fix: bump Node.js to patched 24.22.1 and pin patched floor in images @andrew-codes (#698)
+
+## ⬆️ Dependency updates
+- chore(deps): bump body-parser from 2.3.0 to 2.4.0 (#697)
+- chore(deps): bump handlebars from 4.7.9 to 4.7.10 (#694)
+- chore(deps): bump proxy-addr from 2.0.7 to 2.0.8 (#690)
+- Bump ip-address from 10.4.0 to 10.7.2 (#686)
+- Bump browserslist from 4.28.2 to 4.28.8 (#677)
+
+## 1.7.5 - 2026-10-16
+
+## What’s changed
+- fix(server): stop discovery stacking message listeners on the shared UDP socket @andrew-codes (#693)
+
+## 1.7.4 - 2026-10-08
+
+## What’s changed
+- fix: update GitHub link in header to point to the correct repository @ShanuDey (#688)
+
+## Fork notes for 1.7.4 - 2026-10-01
 
 ## Upstream update
 - Integrate upstream v1.7.3: passcode-protected profiles, persistent PSN OAuth tokens, improved standby reliability and Node.js compatibility, multi-subnet discovery, and clean shutdown.
