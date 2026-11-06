@@ -5,10 +5,9 @@
  *
  * Two modes, selected by GITHUB_EVENT_NAME:
  *
- *   - "release": the workflow was triggered by publishing a GitHub release.
- *     draft-release.yml already resolved the next version via
- *     release-drafter, so the version/tag come straight from the published
- *     release's tag name. should_publish=true.
+ *   - "release" or "push": the workflow was triggered by publishing a GitHub
+ *     release or pushing a version tag. The version/tag come straight from
+ *     the release/tag name. should_publish=true.
  *
  *   - anything else (e.g. workflow_dispatch): there's no release to read a
  *     version from, so bump from merged PR labels the same way
@@ -17,7 +16,7 @@
  *
  * Environment variables:
  *   GITHUB_EVENT_NAME  Set automatically by Actions.
- *   RELEASE_TAG_NAME   The published release's tag (release mode only).
+ *   RELEASE_TAG_NAME   The published release's tag (release/tag-push mode).
  *   GITHUB_REF_NAME    Set automatically by Actions; used as the PR base
  *                      branch when resolving labels (dispatch mode only).
  *   GITHUB_TOKEN       Used to query merged PRs via `gh` (dispatch mode only).
@@ -136,7 +135,9 @@ function resolveFromMergedPrLabels(): { version: string; tag: string } {
   return { version, tag: `v${version}` }
 }
 
-const isReleaseEvent = process.env.GITHUB_EVENT_NAME === "release"
+const isReleaseEvent = ["release", "push"].includes(
+  process.env.GITHUB_EVENT_NAME ?? "",
+)
 
 const { version, tag } = isReleaseEvent
   ? (() => {
